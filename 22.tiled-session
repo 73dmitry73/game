@@ -1,0 +1,61 @@
+{
+    "activeFile": "level3.json",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "C:/Users/79626/OneDrive/Рабочий стол/half/level.json": {
+            "scale": 1.6328125,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 320.3062200956938,
+                "y": 159.54066985645932
+            }
+        },
+        "level.json": {
+            "scale": 0.3265625,
+            "selectedLayer": 4,
+            "viewCenter": {
+                "x": 462.3923444976076,
+                "y": 266.4114832535886
+            }
+        },
+        "level3.json": {
+            "expandedObjectLayers": [
+                10
+            ],
+            "scale": 0.3265625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 2151.196172248804,
+                "y": 159.23444976076553
+            }
+        },
+        "sp1.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "sp2.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        }
+    },
+    "last.imagePath": "C:/Users/79626/OneDrive/Рабочий стол/ниндзя файтер/sprites",
+    "map.height": 10,
+    "map.lastUsedFormat": "json",
+    "map.width": 20,
+    "openFiles": [
+        "C:/Users/79626/OneDrive/Рабочий стол/half/level.json",
+        "level3.json",
+        "sp1.tsx"
+    ],
+    "project": "22.tiled-project",
+    "recentFiles": [
+        "C:/Users/79626/OneDrive/Рабочий стол/half/level.json",
+        "sp1.tsx",
+        "level3.json",
+        "sp2.tsx",
+        "level.json"
+    ],
+    "tileset.lastUsedFormat": "tsx"
+}
