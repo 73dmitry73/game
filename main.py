@@ -1,6 +1,9 @@
 # main.py
+# main.py
+import asyncio
 import pygame
 import sys
+
 import settings
 import sheet_config
 from sprites import Tile, PortalTrigger, ShopSign  # Добавлен ShopSign в импорт
@@ -176,173 +179,167 @@ graphics_buttons = [
     Button("Назад", 250, 380, 300, 50, back_to_menu)
 ]
 
-running = True
-while running:
-    current_win_width = screen.get_width()
-    current_win_height = screen.get_height()
+async def main():
+    global game_state, screen
+    running = True
+    while running:
+        current_win_width = screen.get_width()
+        current_win_height = screen.get_height()
 
-    events = pygame.event.get()
-    for event in events:
-        if event.type == pygame.QUIT: running = False
-        
-        if game_state == "MAIN_MENU":
-            for btn in menu_buttons: btn.handle_event(event)
-        elif game_state == "GRAPHICS_MENU":
-            for btn in graphics_buttons: btn.handle_event(event)
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                running = False
             
+            if game_state == "MAIN_MENU":
+                for btn in menu_buttons:
+                    btn.handle_event(event)
+            elif game_state == "GRAPHICS_MENU":
+                for btn in graphics_buttons:
+                    btn.handle_event(event)
+                
+            elif game_state == "GAME":
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_LEFT, pygame.K_a):
+                        player.vel_x = -3
+                    if event.key in (pygame.K_RIGHT, pygame.K_d):
+                        player.vel_x = 3
+                    if event.key in (pygame.K_SPACE, pygame.K_w):
+                        player.jump()
+                    if event.key == pygame.K_ESCAPE:
+                        game_state = "MAIN_MENU" 
+                    
+                if event.type == pygame.KEYUP:
+                    if event.key in (pygame.K_LEFT, pygame.K_a) and player.vel_x < 0:
+                        player.vel_x = 0
+                    if event.key in (pygame.K_RIGHT, pygame.K_d) and player.vel_x > 0:
+                        player.vel_x = 0
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1 and not player.is_attacking:
+                        player.attack()
+                        fx = HitEffect(player, [1, 2, 3], player.facing_right)
+                        effects_group.add(fx)
+
+        virtual_screen.fill(settings.BLACK)
+        screen.fill(settings.BLACK)
+
+        if game_state == "MAIN_MENU":
+            for btn in menu_buttons: 
+                btn.rect.centerx = current_win_width // 2
+                btn.draw(screen)
+        elif game_state == "GRAPHICS_MENU":
+            for btn in graphics_buttons: 
+                btn.rect.centerx = current_win_width // 2
+                btn.draw(screen)
         elif game_state == "GAME":
-            if event.type == pygame.KEYDOWN:
-                if event.key in (pygame.K_LEFT, pygame.K_a): player.vel_x = -3
-                if event.key in (pygame.K_RIGHT, pygame.K_d): player.vel_x = 3
-                if event.key in (pygame.K_SPACE, pygame.K_w): player.jump()
-
-                if event.key == pygame.K_ESCAPE: game_state = "MAIN_MENU" 
-                
-            if event.type == pygame.KEYUP:
-                if event.key in (pygame.K_LEFT, pygame.K_a) and player.vel_x < 0: player.vel_x = 0
-                if event.key in (pygame.K_RIGHT, pygame.K_d) and player.vel_x > 0: player.vel_x = 0
-
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1 and not player.is_attacking:
-                    player.attack()
-                    fx = HitEffect(player, [1, 2, 3], player.facing_right)
-                    effects_group.add(fx)
-
-    virtual_screen.fill(settings.BLACK)
-    screen.fill(settings.BLACK)
-
-    if game_state == "MAIN_MENU":
-        for btn in menu_buttons: 
-            btn.rect.centerx = current_win_width // 2
-            btn.draw(screen)
-    elif game_state == "GRAPHICS_MENU":
-        for btn in graphics_buttons: 
-            btn.rect.centerx = current_win_width // 2
-            btn.draw(screen)
-    elif game_state == "GAME":
-        screen_left = -camera.offset_x
-        screen_right = screen_left + settings.VIRTUAL_WIDTH
-        
-        for spawn_x, spawn_y in enemy_spawns:
-            if spawn_x < screen_left - 32 or spawn_x > screen_right + 32:
-                already_exists = False
-                current_enemy_type = "Enemy" 
-                
-                for enemy in enemies_group:
-                    if enemy.start_x == spawn_x and enemy.start_y == spawn_y:
-                        already_exists = True
-                        break
-                        
-                if not already_exists:
-                    for obj in level_objects:
-                        if int(obj["x"]) == spawn_x and int(obj["y"]) == spawn_y:
-                            current_enemy_type = obj["name"]
+            screen_left = -camera.offset_x
+            screen_right = screen_left + settings.VIRTUAL_WIDTH
+            
+            for spawn_x, spawn_y in enemy_spawns:
+                if spawn_x < screen_left - 32 or spawn_x > screen_right + 32:
+                    already_exists = False
+                    current_enemy_type = "Enemy" 
+                    
+                    for enemy in enemies_group:
+                        if enemy.start_x == spawn_x and enemy.start_y == spawn_y:
+                            already_exists = True
                             break
                             
-                    new_enemy = create_enemy(current_enemy_type, spawn_x, spawn_y)
-                    if new_enemy:
-                        enemies_group.add(new_enemy)
+                    if not already_exists:
+                        for obj in level_objects:
+                            if int(obj["x"]) == spawn_x and int(obj["y"]) == spawn_y:
+                                current_enemy_type = obj["name"]
+                                break
+                                
+                        new_enemy = create_enemy(current_enemy_type, spawn_x, spawn_y)
+                        if new_enemy:
+                            enemies_group.add(new_enemy)
 
-        # Обновление логики
-        player.update(platforms, deadly_blocks)
-        effects_group.update() 
-        enemies_group.update(platforms) 
-        signs_group.update()  # Обновляем анимацию вывесок магазина
-        
-        hit_portals = pygame.sprite.spritecollide(player, portals, False)
-        for p in hit_portals:
-            if p.target_level:  
-                load_level_map(p.target_level)
-                break  
-
-               # Фильтрация и одиночное нанесение урона за взмах
-                # Фильтрация и одиночное нанесение урона за взмах
-                # Фильтрация и одиночное нанесение урона за взмах
-        for fx in effects_group:
-            hit_enemies = pygame.sprite.spritecollide(fx, enemies_group, False)
-            for enemy in hit_enemies:
-                if hasattr(fx, 'hit_enemies'):
-                    if not enemy.is_dead and enemy not in fx.hit_enemies:  
-                        # Безопасный вызов die(): передаем спавны только Боссу
-                        if enemy.__class__.__name__ == "BossCar":
-                            enemy.die(enemy_spawns)
-                        else:
-                            enemy.die()        
-                        fx.hit_enemies.append(enemy)
-                else:
-                    if not enemy.is_dead:
-                        if enemy.__class__.__name__ == "BossCar":
-                            enemy.die(enemy_spawns)
-                        else:
-                            enemy.die()
-
-
-      
-
-        for enemy in enemies_group:
-
-            if not enemy.is_dead and pygame.sprite.collide_rect(player, enemy):
-                player.take_damage(enemy.rect.centerx)
-        
-        if pygame.sprite.spritecollideany(player, deadly_blocks):
-            player.reset_position()
-            effects_group.empty()
+            player.update(platforms, deadly_blocks)
+            effects_group.update() 
+            enemies_group.update(platforms) 
+            signs_group.update()
             
-        camera.update(player, level_data)
-        shake_x = 0
-        shake_y = 0
-        for enemy in enemies_group:
-            # Если это босс и он находится в состоянии аварии в стене
-            if hasattr(enemy, 'state') and enemy.state == "crashed":
-                import random
-                # Случайное смещение пикселей для создания эффекта вибрации
-                shake_x = random.randint(-4, 4)
-                shake_y = random.randint(-4, 4)
-                # Отрисовка тайлов карты с учетом тряски
-        for sprite in all_sprites:
-            virtual_screen.blit(sprite.image, (sprite.rect.x + camera.offset_x + shake_x, sprite.rect.y + camera.offset_y + shake_y))
+            hit_portals = pygame.sprite.spritecollide(player, portals, False)
+            for p in hit_portals:
+                if p.target_level:  
+                    load_level_map(p.target_level)
+                    break  
+
+            for fx in effects_group:
+                hit_enemies = pygame.sprite.spritecollide(fx, enemies_group, False)
+                for enemy in hit_enemies:
+                    if hasattr(fx, 'hit_enemies'):
+                        if not enemy.is_dead and enemy not in fx.hit_enemies:  
+                            if enemy.__class__.__name__ == "BossCar":
+                                enemy.die(enemy_spawns)
+                            else:
+                                enemy.die()        
+                            fx.hit_enemies.append(enemy)
+                    else:
+                        if not enemy.is_dead:
+                            if enemy.__class__.__name__ == "BossCar":
+                                enemy.die(enemy_spawns)
+                            else:
+                                enemy.die()
+
+            for enemy in enemies_group:
+                if not enemy.is_dead and pygame.sprite.collide_rect(player, enemy):
+                    player.take_damage(enemy.rect.centerx)
             
-        # Отрисовка порталов с учетом тряски
-        for p in portals:
-            virtual_screen.blit(p.image, (p.rect.x + camera.offset_x + shake_x, p.rect.y + camera.offset_y + shake_y))
-
-        # Отрисовка вывесок с учетом тряски
-        for sign in signs_group:
-            virtual_screen.blit(sign.image, (sign.rect.x + camera.offset_x + shake_x, sign.rect.y + camera.offset_y + shake_y))
-
-        # Отрисовка врагов с учетом тряски
-        for enemy in enemies_group:
-            if enemy.visible:  
-                virtual_screen.blit(enemy.image, (enemy.rect.x + camera.offset_x + shake_x, enemy.rect.y + camera.offset_y + shake_y))
-
-        # Отрисовка игрока с учетом тряски
-                # Отрисовка игрока с учетом тряски
-        if player.visible:
-            virtual_screen.blit(player.image, (player.rect.x + camera.offset_x + shake_x, player.rect.y + camera.offset_y + shake_y))
-        
-        # === ВОЗВРАТ АНИМАЦИИ ВСПЫШКИ УДАРА ===
-        for fx in effects_group:
-            virtual_screen.blit(fx.image, (fx.rect.x + camera.offset_x + shake_x, fx.rect.y + camera.offset_y + shake_y))
-
-        # === ИНТЕРФЕЙС ЗДОРОВЬЯ БОССА НАВЕРХУ ЭКРАНА ===
-        for enemy in enemies_group:
-            if hasattr(enemy, 'hp') and not enemy.is_dead:
-                bar_width = 200
-                bar_height = 10
-                bar_x = (settings.VIRTUAL_WIDTH - bar_width) // 2
-                bar_y = 15
+            if pygame.sprite.spritecollideany(player, deadly_blocks):
+                player.reset_position()
+                effects_group.empty()
                 
-                pygame.draw.rect(virtual_screen, settings.BLACK, (bar_x, bar_y, bar_width, bar_height))
-                current_bar_width = int(bar_width * (enemy.hp / enemy.max_hp))
-                pygame.draw.rect(virtual_screen, (200, 50, 50), (bar_x, bar_y, bar_width, bar_height))
-                pygame.draw.rect(virtual_screen, (50, 200, 50), (bar_x, bar_y, current_bar_width, bar_height))
-                pygame.draw.rect(virtual_screen, settings.WHITE, (bar_x - 1, bar_y - 1, bar_width + 2, bar_height + 2), 1)
+            camera.update(player, level_data)
+            shake_x = 0
+            shake_y = 0
+            for enemy in enemies_group:
+                if hasattr(enemy, 'state') and enemy.state == "crashed":
+                    import random
+                    shake_x = random.randint(-4, 4)
+                    shake_y = random.randint(-4, 4)
 
+            for sprite in all_sprites:
+                virtual_screen.blit(sprite.image, (sprite.rect.x + camera.offset_x + shake_x, sprite.rect.y + camera.offset_y + shake_y))
+                
+            for p in portals:
+                virtual_screen.blit(p.image, (p.rect.x + camera.offset_x + shake_x, p.rect.y + camera.offset_y + shake_y))
 
-        scaled_surface = pygame.transform.scale(virtual_screen, (current_win_width, current_win_height))
-        screen.blit(scaled_surface, (0, 0))
+            for sign in signs_group:
+                virtual_screen.blit(sign.image, (sign.rect.x + camera.offset_x + shake_x, sign.rect.y + camera.offset_y + shake_y))
 
-    pygame.display.flip()
+            for enemy in enemies_group:
+                if enemy.visible:  
+                    virtual_screen.blit(enemy.image, (enemy.rect.x + camera.offset_x + shake_x, enemy.rect.y + camera.offset_y + shake_y))
 
-    clock.tick(settings.FPS)
-pygame.quit()
+            if player.visible:
+                virtual_screen.blit(player.image, (player.rect.x + camera.offset_x + shake_x, player.rect.y + camera.offset_y + shake_y))
+            
+            for fx in effects_group:
+                virtual_screen.blit(fx.image, (fx.rect.x + camera.offset_x + shake_x, fx.rect.y + camera.offset_y + shake_y))
+
+            for enemy in enemies_group:
+                if hasattr(enemy, 'hp') and not enemy.is_dead:
+                    bar_width = 200
+                    bar_height = 10
+                    bar_x = (settings.VIRTUAL_WIDTH - bar_width) // 2
+                    bar_y = 15
+                    
+                    pygame.draw.rect(virtual_screen, settings.BLACK, (bar_x, bar_y, bar_width, bar_height))
+                    current_bar_width = int(bar_width * (enemy.hp / enemy.max_hp))
+                    pygame.draw.rect(virtual_screen, (200, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+                    pygame.draw.rect(virtual_screen, (50, 200, 50), (bar_x, bar_y, current_bar_width, bar_height))
+                    pygame.draw.rect(virtual_screen, settings.WHITE, (bar_x - 1, bar_y - 1, bar_width + 2, bar_height + 2), 1)
+
+            scaled_surface = pygame.transform.scale(virtual_screen, (current_win_width, current_win_height))
+            screen.blit(scaled_surface, (0, 0))
+
+        pygame.display.flip()
+        clock.tick(settings.FPS)
+        await asyncio.sleep(0)
+
+    pygame.quit()
+
+asyncio.run(main())
