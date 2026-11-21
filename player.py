@@ -7,22 +7,41 @@ class Player(pygame.sprite.Sprite):
         self.start_x = x
         self.start_y = y
         
-        # 9-й спрайт — одиночный кадр покоя (idle)
-        self.idle_image = settings.get_sprite_by_id(6)
+        # ЗАМЕНИТЕ НОМЕРА НА ВАШИ 4 ТАЙЛА ДЛЯ КАЖДОГО КАДРА (Верх-Лев, Верх-Прав, Низ-Лев, Низ-Прав)
+                # 8 кадров анимации покоя (idle) размером 64x64
+        self.idle_frames = [
+            settings.get_64x64_sprite(163, 164, 195, 196), # Кадр 1
+            settings.get_64x64_sprite(165, 166, 197, 198), # Кадр 2
+            settings.get_64x64_sprite(167, 168, 199, 200), # Кадр 3
+            settings.get_64x64_sprite(227, 228, 259, 260), # Кадр 4
+            settings.get_64x64_sprite(229, 230, 261, 262), # Кадр 5
+            settings.get_64x64_sprite(231, 232, 263, 264), # Кадр 6
+            settings.get_64x64_sprite(291, 292, 323, 324), # Кадр 7
+            settings.get_64x64_sprite(293, 294, 325, 326), # Кадр 8
+        ]
+
         
-        # Анимация бега: 14, 13, 14, 16
         self.run_frames = [
-            settings.get_sprite_by_id(38),
-            settings.get_sprite_by_id(39),
-            settings.get_sprite_by_id(40),
-            settings.get_sprite_by_id(39)
+            settings.get_96x64_sprite(353, 354, 355, 385, 386, 387), # Кадр 1
+            settings.get_96x64_sprite(356, 357, 358, 388, 389, 390), # Кадр 2
+            settings.get_96x64_sprite(359, 360, 361, 391, 392, 393), # Кадр 3
+            settings.get_96x64_sprite(362, 363, 364, 394, 395, 396), # Кадр 4
+            settings.get_96x64_sprite(365, 366, 367, 397, 398, 399), # Кадр 5
+            settings.get_96x64_sprite(368, 369, 370, 400, 401, 402), # Кадр 6
+            settings.get_96x64_sprite(371, 372, 373, 403, 404, 405), # Кадр 7
+            settings.get_96x64_sprite(374, 375, 376, 406, 407, 408), # Кадр 8
+        ]
+
+
+        
+        # Анимация удара
+        self.attack_frames = [
+            settings.get_64x64_sprite(9, 10, 41, 42),
+            settings.get_64x64_sprite(11, 12, 43, 44)
         ]
         
-        # Анимация удара: 10, 11
-        self.attack_frames = [
-            settings.get_sprite_by_id(7),
-            settings.get_sprite_by_id(8)
-        ]
+        # ... остальной код __init__ без изменений ...
+
         
         self.current_frame = 0
         self.animation_speed = 0.15 
@@ -41,14 +60,15 @@ class Player(pygame.sprite.Sprite):
         self.max_jumps = 2            # Всего прыжков доступно (1 обычный + 1 двойной)
         self.jumps_left = self.max_jumps
         
-        self.image = self.idle_image
+        self.image = self.idle_frames[0]
+
         self.rect = self.image.get_rect()
         self.reset_position()
 
     def reset_position(self):
         """Возвращает игрока на начальную точку"""
         self.rect.x = self.start_x
-        self.rect.y = self.start_y
+        self.rect.y = self.start_y - 32
         self.vel_x = 0
         self.vel_y = 0
         self.on_ground = False
@@ -127,12 +147,16 @@ class Player(pygame.sprite.Sprite):
             if self.current_frame >= len(self.attack_frames):
                 self.is_attacking = False  
                 self.current_frame = 0
-                base_image = self.idle_image
+                base_image = self.idle_frames[0]
             else:
                 base_image = self.attack_frames[int(self.current_frame)]
+
         else:
             if self.vel_x == 0:
-                base_image = self.idle_image
+                self.current_frame += self.animation_speed
+                if self.current_frame >= len(self.idle_frames):
+                    self.current_frame = 0
+                base_image = self.idle_frames[int(self.current_frame)]
             else:
                 self.current_frame += self.animation_speed
                 if self.current_frame >= len(self.run_frames):

@@ -3,7 +3,7 @@
 import asyncio
 import pygame
 import sys
-
+import audio  
 import settings
 import sheet_config
 from sprites import Tile, PortalTrigger, ShopSign  # Добавлен ShopSign в импорт
@@ -61,37 +61,62 @@ class Camera:
 
 # --- ГЛОБАЛЬНЫЕ ГРУППЫ СПРАЙТОВ ---
 all_sprites = pygame.sprite.Group()
+foreground_sprites = pygame.sprite.Group() 
 platforms = pygame.sprite.Group()
 deadly_blocks = pygame.sprite.Group()
 portals = pygame.sprite.Group()         
 enemies_group = pygame.sprite.Group()  
 effects_group = pygame.sprite.Group() 
-signs_group = pygame.sprite.Group()     # Новая группа для вывесок магазинов
+signs_group = pygame.sprite.Group()  
+bg_images = []   # Новая группа для вывесок магазинов
 enemy_spawns = [] 
 level_objects = []
 level_data = []
 
 def load_level_map(filename):
-    """Полностью очищает старый уровень и загружает любой указанный JSON файл"""
-    global level_data, level_objects, enemy_spawns
+    global level_data, level_objects, enemy_spawns, bg_images
     
     print(f"[ИНФО] Загрузка уровня: {filename}")
     
     all_sprites.empty()
+    foreground_sprites.empty()
     platforms.empty()
     deadly_blocks.empty()
     portals.empty()
     enemies_group.empty()
     effects_group.empty()
-    signs_group.empty()  # Очищаем вывески при смене уровня
+    signs_group.empty()
     enemy_spawns.clear()
+    bg_images.clear()  # <-- Очищаем старые фоновые картинки при смене уровня
     
-    tile_layers, level_objects = settings.load_level(filename)
-    if not tile_layers:
+    tile_layers, level_objects, image_layers, map_props = settings.load_level(filename)
+    if not tile_layers and not image_layers:
         print(f"[ОШИБКА] Не удалось загрузить карту: {filename}")
         return
 
-    level_data = tile_layers[0] if tile_layers else []
+    audio.play_level_music(map_props)
+
+
+    # Загружаем картинки слоев изображений
+        # Загружаем картинки слоев изображений
+    for img_data in image_layers:
+        img_path = img_data["image"]
+        if img_path:
+            try:
+                loaded_img = pygame.image.load(img_path).convert_alpha()
+                bg_images.append((
+                    loaded_img, 
+                    img_data["x"], 
+                    img_data["y"], 
+                    img_data.get("parallax_x", 0.3), 
+                    img_data.get("parallax_y", 0.3)
+                ))
+            except Exception as e:
+                print(f"[ОШИБКА] Не удалось загрузить фон '{img_path}': {e}")
+
+
+    # Берем сетку первого слоя для расчета границ камеры (индекс [1] в кортеже)
+    level_data = tile_layers[0][1] if tile_layers else []
     
     level_width_pixels = len(level_data[0]) * 32 if level_data else settings.VIRTUAL_WIDTH
     level_height_pixels = len(level_data) * 32 if level_data else settings.VIRTUAL_HEIGHT
@@ -101,12 +126,11 @@ def load_level_map(filename):
 
     player_spawn_x, player_spawn_y = 100, 100
 
-    # 1. Расставляем объекты
+    # 1. Расставляем объекты (остается без изменений)
     for obj in level_objects:
         if obj["name"] == "Player":
             player_spawn_x = int(obj["x"])
             player_spawn_y = int(obj["y"])
-            
         elif obj["name"] == "Portal":
             portal = PortalTrigger(
                 int(obj["x"]), int(obj["y"]), 
@@ -114,8 +138,6 @@ def load_level_map(filename):
                 obj["target_level"]
             )
             portals.add(portal)
-            
-        # --- ОБРАБОТКА ОБЪЕКТА ShopSign ИЗ MAP JSON ---
         elif obj["name"] == "ShopSign":
             sign = ShopSign(
                 int(obj["x"]), int(obj["y"]), 
@@ -123,15 +145,14 @@ def load_level_map(filename):
                 SIGN_ANIMATION_DATA
             )
             signs_group.add(sign)
-            
         elif obj["name"] != "":  
             ex, ey = int(obj["x"]), int(obj["y"])
             enemy_spawns.append((ex, ey))
             enemy = create_enemy(obj["name"], ex, ey)
             if enemy: enemies_group.add(enemy)
 
-    # 2. Строим тайлы слоев
-    for layer_grid in tile_layers:
+    # 2. Строим тайлы слоев с учетом имени слоя
+    for layer_name, layer_grid in tile_layers:
         for row_idx, row_list in enumerate(layer_grid):
             for col_idx, tile_id in enumerate(row_list):
                 if tile_id == 0: continue
@@ -139,7 +160,12 @@ def load_level_map(filename):
                 x = col_idx * 32
                 y = row_idx * 32
                 tile = Tile(tile_id, x, y)
-                all_sprites.add(tile)
+                
+                # Если слой называется "верхний декор", кладем в группу переднего плана
+                if layer_name == "верхний декор":
+                    foreground_sprites.add(tile)
+                else:
+                    all_sprites.add(tile)
                 
                 if tile.is_solid:
                     platforms.add(tile)
@@ -149,6 +175,7 @@ def load_level_map(filename):
     player.start_x = player_spawn_x
     player.start_y = player_spawn_y
     player.reset_position()
+
 
 # --- Инициализация камеры и игрока ---
 player = Player(100, 100)
@@ -301,8 +328,15 @@ async def main():
                     shake_x = random.randint(-4, 4)
                     shake_y = random.randint(-4, 4)
 
+            # --- ВСТАВИТЬ ЭТОТ БЛОК ОТРИСОВКИ ФОНА СЮДА ---
+            for bg_img, bg_x, bg_y, px, py in bg_images:
+                virtual_screen.blit(bg_img, (bg_x + camera.offset_x * 0.1 + shake_x, bg_y + camera.offset_y * 0.1 + shake_y))
+
+            # ---------------------------------------------
+
             for sprite in all_sprites:
                 virtual_screen.blit(sprite.image, (sprite.rect.x + camera.offset_x + shake_x, sprite.rect.y + camera.offset_y + shake_y))
+
                 
             for p in portals:
                 virtual_screen.blit(p.image, (p.rect.x + camera.offset_x + shake_x, p.rect.y + camera.offset_y + shake_y))
@@ -319,7 +353,10 @@ async def main():
             
             for fx in effects_group:
                 virtual_screen.blit(fx.image, (fx.rect.x + camera.offset_x + shake_x, fx.rect.y + camera.offset_y + shake_y))
-
+          
+            for sprite in foreground_sprites:
+                virtual_screen.blit(sprite.image, (sprite.rect.x + camera.offset_x + shake_x, sprite.rect.y + camera.offset_y + shake_y))
+                
             for enemy in enemies_group:
                 if hasattr(enemy, 'hp') and not enemy.is_dead:
                     bar_width = 200
