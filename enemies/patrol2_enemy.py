@@ -103,7 +103,6 @@ class Patrol2Enemy(pygame.sprite.Sprite):
             self.current_frame = 0
         base_image = self.walk_frames[int(self.current_frame)]
         self.image = base_image if self.facing_right else pygame.transform.flip(base_image, True, False)
-
         return
 
         # --- ЛОГИКА ДЛЯ ЖИВОГО ВРАГА ---
