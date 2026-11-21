@@ -73,7 +73,7 @@ enemy_spawns = []
 level_objects = []
 level_data = []
 
-def load_level_map(filename):
+def load_level_map(filename, play_audio=True):
     global level_data, level_objects, enemy_spawns, bg_images
     
     print(f"[ИНФО] Загрузка уровня: {filename}")
@@ -94,8 +94,9 @@ def load_level_map(filename):
         print(f"[ОШИБКА] Не удалось загрузить карту: {filename}")
         return
 
-    audio.play_level_music(map_props)
-
+   
+    if play_audio:
+        audio.play_level_music(map_props)
 
     # Загружаем картинки слоев изображений
         # Загружаем картинки слоев изображений
@@ -182,12 +183,15 @@ player = Player(100, 100)
 camera = Camera(settings.VIRTUAL_WIDTH, settings.VIRTUAL_HEIGHT)
 
 # Загружаем стартовый уровень при первом запуске
-load_level_map(START_LEVEL)
+# Строка 184 (первая загрузка до меню — БЕЗ звука):
+load_level_map(START_LEVEL, play_audio=False)
 
 def start_game(): 
     global game_state
     game_state = "GAME"
-    load_level_map(START_LEVEL)
+    # Строка 189 (клик по кнопке "Играть" — СО звуком):
+    load_level_map(START_LEVEL, play_audio=True)
+
 
 def open_graphics_menu(): global game_state; game_state = "GRAPHICS_MENU"
 def back_to_menu(): global game_state; game_state = "MAIN_MENU"
